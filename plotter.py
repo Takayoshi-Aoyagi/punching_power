@@ -14,5 +14,6 @@ class Plotter:
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d\n%H:%M:%S'))
         plt.plot(t, y)
         plt.gcf().autofmt_xdate()
-        plt.show()
+        #plt.show()
+        return fig
         
