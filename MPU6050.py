@@ -1,8 +1,11 @@
 import os
 import smbus
 import time
+from datetime import datetime
 
 import RPi.GPIO as GPIO
+
+from plotter import Plotter
 
 
 class MPU6050:
@@ -90,19 +93,21 @@ class MPU6050:
         t = self.getValueTemp()
         return gx, gy, gz, ax, ay, az, t
 
-        
+
+
 if __name__ == '__main__':
     mpu = MPU6050()
-
-    for i in range(5):
-        print("Now Adjusting offset...")
-        gx, gy, gz, ax, ay, az, t = mpu.get_values()
-        mpu.set_offset(-gx, -gy, -gz, -ax, -ay, -az)
-        time.sleep(1)
     
+    print("Now Adjusting offset...")
+    #time.sleep(5)
+    gx, gy, gz, ax, ay, az, t = mpu.get_values()
+    mpu.set_offset(-gx, -gy, -gz, -ax, -ay, -az)
+
+    t = []
+    y = []
     for a in range(1000):
         #os.system('clear')
-        gx, gy, gz, ax, ay, az, t = mpu.get_values()
+        gx, gy, gz, ax, ay, az, temp = mpu.get_values()
         print(mpu.gx0, mpu.gy0, mpu.gz0)
         print 'Gyro X= %6d' % gx
 	print 'Gyro Y= %6d' % gy
@@ -110,5 +115,13 @@ if __name__ == '__main__':
 	print 'Acc. X= %6d' % ax
 	print 'Acc. Y= %6d' % ay
 	print 'Acc. Z= %6d' % az
-	print 'Temp. = %6.2f' % t
-	time.sleep(0.5)
+	print 'Temp. = %6.2f' % temp
+        t.append(datetime.now())
+        y.append(az)
+	#time.sleep(0.5)
+        
+
+    Plotter.plot(t, y)
+    sys.exit(1)
+
+        
