@@ -38,8 +38,8 @@ class ApplicationFrame(Frame):
         self.set_status('Initializing...')
 
     def adjust(self):
-        self.set_status("Now Adjusting offset...")
-        time.sleep(5)
+        self.count_down('Now Adjusting offset... {}', 5)
+
         gx, gy, gz, ax, ay, az, t = self.mpu.get_values()
         self.mpu.set_offset(-gx, -gy, -gz, -ax, -ay, -az)
         self.set_status("Adjusting offset Done")
@@ -82,12 +82,15 @@ class ApplicationFrame(Frame):
         canvas.draw()
         canvas.get_tk_widget().pack()
         self.set_status('Plotting DONE')
-        sec = 10
-        for i in range(sec):
-            self.set_status('Next measurement will be started in {} sec.'.format(sec - i))
-            time.sleep(1)
+
+        self.count_down('Next measurement will be started in {} sec.', 10)
         
         canvas.get_tk_widget().pack_forget()
+
+    def count_down(self, fmt, sec):
+        for i in range(sec):
+            self.set_status(fmt.format(sec - i))
+            time.sleep(1)
         
     def init_measurement(self):
         self.mpu = MPU6050()
