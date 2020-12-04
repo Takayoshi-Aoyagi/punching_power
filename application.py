@@ -6,21 +6,27 @@ import matplotlib
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from Tkinter import Frame, Label
+from Tkinter import Frame, Label, Tk
 
 from MPU6050 import MPU6050
 
 
-class Application(Frame):
+class ApplicationFrame(Frame):
 
     def __init__(self, master=None):
+        self.terminate_flag = False
         self._master = master
         Frame.__init__(self, master)
         self.pack()
         self.create_widgets()
 
-        t1 = threading.Thread(target=self.init_measurement)
-        t1.start()
+        self.tm = threading.Thread(target=self.init_measurement)
+        self.tm.start()
+
+    def terminate(self):
+        self.terminate_flag = True
+        self.tm.join()
+        self.destroy()
 
     def set_status(self, status):
         label = 'STATUS: {}'.format(status)
@@ -80,7 +86,25 @@ class Application(Frame):
     def init_measurement(self):
         self.mpu = MPU6050()
 
-        while True:
+        while self.terminate_flag is False:
             self.adjust()
             t, y = self.measure()
             self.plot(t, y)
+
+
+class Application:
+
+    def __init__(self):
+        root = Tk()
+        root.title('Punching power')
+        #root.attributes('-fullscreen', True)
+        root.geometry('800x600')
+        frame = ApplicationFrame(master=root)
+        frame.mainloop()
+        self.frame = frame
+
+    def destroy(self):
+        try:
+            self.frame.terminate()
+        except Exception as e:
+            print(e)
