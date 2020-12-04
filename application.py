@@ -71,6 +71,12 @@ class ApplicationFrame(Frame):
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d\n%H:%M:%S'))
         plt.plot(t, y)
         plt.gcf().autofmt_xdate()
+
+        ymax = max(y)
+        tmax = t[y.index(ymax)]
+        ax.annotate('MAX: {}'.format(ymax),
+                   xy=(tmax, ymax), xytext=(tmax, ymax+5),
+                   arrowprops=dict(facecolor='black', shrink=0.05),)
         
         canvas = FigureCanvasTkAgg(fig, master=self._master)
         canvas.draw()
