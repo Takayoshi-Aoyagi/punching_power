@@ -4,18 +4,22 @@ from datetime import datetime
 
 import matplotlib
 import matplotlib.dates as mdates
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from Tkinter import Frame, Label, Tk
+from tkinter import Frame, Label, Tk
 
-from MPU6050 import MPU6050
+#from MPU6050 import MPU6050
+from motiontracker import MotionTracker
+
 
 
 class ApplicationFrame(Frame):
 
-    def __init__(self, master=None):
+    def __init__(self, master=None, bd_addr=None):
         self.terminate_flag = False
         self._master = master
+        self.bd_addr = bd_addr
         Frame.__init__(self, master)
         self.pack()
         self.create_widgets()
@@ -24,12 +28,14 @@ class ApplicationFrame(Frame):
         self.tm.start()
 
     def terminate(self):
+        self.session.stop_read_data()
         self.terminate_flag = True
         self.tm.join()
         self.destroy()
 
     def set_status(self, status):
         label = 'STATUS: {}'.format(status)
+        print(label)
         self.status_label.config(text=label)
 
     def create_widgets(self):
@@ -49,37 +55,33 @@ class ApplicationFrame(Frame):
         t = []
         y = []
         for a in range(1000):
-            #os.system('clear')
-            gx, gy, gz, ax, ay, az, temp = self.mpu.get_values()
-            print(self.mpu.gx0, self.mpu.gy0, self.mpu.gz0)
-            print 'Gyro X= %6d' % gx
-	    print 'Gyro Y= %6d' % gy
-	    print 'Gyro Z= %6d' % gz
-	    print 'Acc. X= %6d' % ax
-	    print 'Acc. Y= %6d' % ay
-	    print 'Acc. Z= %6d' % az
-	    print 'Temp. = %6.2f' % temp
+            time.sleep(0.01)
+            az = self.session.acc_z
             t.append(datetime.now())
-            y.append(az)
-	    #time.sleep(0.5)
+            y.append(abs(az))
         self.set_status('Measuring DONE')
         return t, y
 
     def plot(self, t, y):
         self.set_status('Plotting...')
         fig, ax = plt.subplots()
+        print(1)
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d\n%H:%M:%S'))
+        print(2)
         plt.plot(t, y)
         plt.gcf().autofmt_xdate()
-
+        print(3)
         ymax = max(y)
         tmax = t[y.index(ymax)]
         ax.annotate('MAX: {}'.format(ymax),
                    xy=(tmax, ymax), xytext=(tmax, ymax+5),
                    arrowprops=dict(facecolor='black', shrink=0.05),)
+        print(4)
         
         canvas = FigureCanvasTkAgg(fig, master=self._master)
+        print(5)
         canvas.draw()
+        print(6)
         canvas.get_tk_widget().pack()
         self.set_status('Plotting DONE')
 
@@ -93,22 +95,28 @@ class ApplicationFrame(Frame):
             time.sleep(1)
         
     def init_measurement(self):
-        self.mpu = MPU6050()
+        print('Start: init_measurement')
+        self.session = MotionTracker(bd_addr=self.bd_addr)
+        print('start: start_read_data')
+        self.session.start_read_data()
+        print('started: start_read_data')
 
         while self.terminate_flag is False:
-            self.adjust()
+            # TODO
+            #self.adjust()
             t, y = self.measure()
+            print(t, y)
             self.plot(t, y)
 
 
 class Application:
 
-    def __init__(self):
+    def __init__(self, bd_addr=None):
         root = Tk()
         root.title('Punching power')
         #root.attributes('-fullscreen', True)
         root.geometry('800x600')
-        frame = ApplicationFrame(master=root)
+        frame = ApplicationFrame(master=root, bd_addr=bd_addr)
         frame.mainloop()
         self.frame = frame
 
