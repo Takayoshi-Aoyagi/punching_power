@@ -9,6 +9,7 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import Button, Frame, Label, Tk
+from tkinter.font import Font
 
 #from MPU6050 import MPU6050
 from motiontracker import MotionTracker
@@ -17,14 +18,92 @@ from motiontracker import MotionTracker
 HISTORY_SIZE = 5
 
 
-class ApplicationFrame(Frame):
+class TitleFrame(Frame):
 
+    def __init__(self, master=None):
+        super().__init__(master)
+
+        def exit_btn_clicked():
+            os._exit(0)
+
+        self.exit_btn = Button(text='x', command=exit_btn_clicked)
+        self.exit_btn.pack(side='right')
+
+
+class ValueFrame(Frame):
+
+    def __init__(self, master=None):
+        super().__init__(master)
+        self.history = [0] * HISTORY_SIZE
+
+        self.status_label = Label(self)
+        self.status_label.pack()
+
+        self.history_label = Label(self)
+        self.history_label.pack(side='right')
+        self.set_history(0)
+
+        self.current_max_label = Label(self)
+        self.current_max_font = Font(size=16)
+        self.current_max_label['font'] = self.current_max_font
+        self.current_max_label.pack(side='left')
+        self.set_current_max(0)
+
+    def set_status(self, status, color='black'):
+        label = 'STATUS: {}'.format(status)
+        print(label)
+        self.status_label.config(text=label, fg=color)
+
+    def set_history(self, value):
+        self.history.insert(0, value)
+        self.history = self.history[0:HISTORY_SIZE]
+        text = 'history: ' + '  '.join(map(lambda x: '%.2f' % x, self.history))
+        print(text)
+        self.history_label.config(text=text)
+
+    def set_current_max(self, ymax):
+        text = 'max: %.2f' % ymax
+        self.current_max_label.config(text=text)
+        self.set_history(ymax)
+        
+
+class GraphFrame(Frame):
+
+    def __init__(self, master=None, app_frame=None):
+        super().__init__(master)
+        self.app_frame=app_frame
+
+    def plot(self, t, y, ymax):
+        fig, ax = plt.subplots()
+        print(1)
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d\n%H:%M:%S'))
+        print(2)
+        plt.plot(t, y)
+        plt.gcf().autofmt_xdate()
+        print(3)
+        tmax = t[y.index(ymax)]
+        ax.annotate('MAX: {}'.format(ymax),
+                   xy=(tmax, ymax), xytext=(tmax, ymax+5),
+                   arrowprops=dict(facecolor='black', shrink=0.05),)
+        print(4)
+        
+        canvas = FigureCanvasTkAgg(fig, master=self)
+        print(5)
+        canvas.draw()
+        print(6)
+        canvas.get_tk_widget().pack()
+
+        self.app_frame.count_down('Next measurement will be started in {} sec.', 10)
+        
+        canvas.get_tk_widget().pack_forget()
+
+
+class ApplicationFrame(Frame):
 
     def __init__(self, master=None, bd_addr=None):
         self.terminate_flag = False
         self._master = master
         self.bd_addr = bd_addr
-        self.history = [0] * HISTORY_SIZE
         Frame.__init__(self, master)
         self.pack()
         self.create_widgets()
@@ -38,45 +117,26 @@ class ApplicationFrame(Frame):
         self.tm.join()
         self.destroy()
 
-    def set_status(self, status):
-        label = 'STATUS: {}'.format(status)
-        print(label)
-        self.status_label.config(text=label)
-
-    def set_history(self, value):
-        self.history.insert(0, value)
-        self.history = self.history[0:HISTORY_SIZE]
-        text = 'history: ' + '  '.join(map(lambda x: '%.2f' % x, self.history))
-        print(text)
-        self.history_label.config(text=text)
-
     def create_widgets(self):
-        self.status_label = Label(self)
-        self.status_label.pack()
-        self.set_status('Initializing...')
+        TitleFrame(master=self._master).pack()
 
-        self.history_label = Label(self)
-        self.history_label.pack()
-        self.set_history(0)
+        self.value_frame = ValueFrame(master=self._master)
+        self.value_frame.pack()
+        self.value_frame.set_status('Initializing...', color='red')
 
-        self.current_max_label = Label(self)
-        self.current_max_label.pack()
-
-        def exit_btn_clicked():
-            os._exit(0)
-            
-        self.exit_btn = Button(text='.', command=exit_btn_clicked)
-        self.exit_btn.pack()
+        self.graph_frame = GraphFrame(master=self._master,
+                                      app_frame=self)
+        self.graph_frame.pack()
 
     def adjust(self):
         self.count_down('Now Adjusting offset... {}', 5)
 
         gx, gy, gz, ax, ay, az, t = self.mpu.get_values()
         self.mpu.set_offset(-gx, -gy, -gz, -ax, -ay, -az)
-        self.set_status("Adjusting offset Done")
+        self.value_frame.set_status("Adjusting offset Done")
 
     def measure(self):
-        self.set_status('Measuring...')
+        self.value_frame.set_status('Measuring...', color='green')
         t = []
         y = []
         for a in range(1000):
@@ -84,46 +144,12 @@ class ApplicationFrame(Frame):
             az = self.session.acc_z
             t.append(datetime.now())
             y.append(abs(az))
-        self.set_status('Measuring DONE')
+        self.value_frame.set_status('Measuring DONE')
         return t, y
-
-    def set_current_max(self, ymax):
-        self.set_history(ymax)
-        text = 'max: %.2f' % ymax
-        self.current_max_label.config(text=text)
-        
-    def plot(self, t, y):
-        self.set_status('Plotting...')
-        fig, ax = plt.subplots()
-        print(1)
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d\n%H:%M:%S'))
-        print(2)
-        plt.plot(t, y)
-        plt.gcf().autofmt_xdate()
-        print(3)
-        ymax = max(y)
-        self.set_current_max(ymax)
-        
-        tmax = t[y.index(ymax)]
-        ax.annotate('MAX: {}'.format(ymax),
-                   xy=(tmax, ymax), xytext=(tmax, ymax+5),
-                   arrowprops=dict(facecolor='black', shrink=0.05),)
-        print(4)
-        
-        canvas = FigureCanvasTkAgg(fig, master=self._master)
-        print(5)
-        canvas.draw()
-        print(6)
-        canvas.get_tk_widget().pack()
-        self.set_status('Plotting DONE')
-
-        self.count_down('Next measurement will be started in {} sec.', 10)
-        
-        canvas.get_tk_widget().pack_forget()
 
     def count_down(self, fmt, sec):
         for i in range(sec):
-            self.set_status(fmt.format(sec - i))
+            self.value_frame.set_status(fmt.format(sec - i))
             time.sleep(1)
         
     def init_measurement(self):
@@ -138,7 +164,9 @@ class ApplicationFrame(Frame):
             #self.adjust()
             t, y = self.measure()
             print(t, y)
-            self.plot(t, y)
+            ymax = max(y)
+            self.value_frame.set_current_max(ymax)
+            self.graph_frame.plot(t, y, ymax)
 
 
 class Application:
