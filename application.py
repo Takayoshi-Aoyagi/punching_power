@@ -1,3 +1,4 @@
+import os
 import threading
 import time
 from datetime import datetime
@@ -7,19 +8,23 @@ import matplotlib.dates as mdates
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from tkinter import Frame, Label, Tk
+from tkinter import Button, Frame, Label, Tk
 
 #from MPU6050 import MPU6050
 from motiontracker import MotionTracker
 
 
+HISTORY_SIZE = 5
+
 
 class ApplicationFrame(Frame):
+
 
     def __init__(self, master=None, bd_addr=None):
         self.terminate_flag = False
         self._master = master
         self.bd_addr = bd_addr
+        self.history = [0] * HISTORY_SIZE
         Frame.__init__(self, master)
         self.pack()
         self.create_widgets()
@@ -38,10 +43,30 @@ class ApplicationFrame(Frame):
         print(label)
         self.status_label.config(text=label)
 
+    def set_history(self, value):
+        self.history.insert(0, value)
+        self.history = self.history[0:HISTORY_SIZE]
+        text = 'history: ' + '  '.join(map(lambda x: '%.2f' % x, self.history))
+        print(text)
+        self.history_label.config(text=text)
+
     def create_widgets(self):
         self.status_label = Label(self)
         self.status_label.pack()
         self.set_status('Initializing...')
+
+        self.history_label = Label(self)
+        self.history_label.pack()
+        self.set_history(0)
+
+        self.current_max_label = Label(self)
+        self.current_max_label.pack()
+
+        def exit_btn_clicked():
+            os._exit(0)
+            
+        self.exit_btn = Button(text='.', command=exit_btn_clicked)
+        self.exit_btn.pack()
 
     def adjust(self):
         self.count_down('Now Adjusting offset... {}', 5)
@@ -62,6 +87,11 @@ class ApplicationFrame(Frame):
         self.set_status('Measuring DONE')
         return t, y
 
+    def set_current_max(self, ymax):
+        self.set_history(ymax)
+        text = 'max: %.2f' % ymax
+        self.current_max_label.config(text=text)
+        
     def plot(self, t, y):
         self.set_status('Plotting...')
         fig, ax = plt.subplots()
@@ -72,6 +102,8 @@ class ApplicationFrame(Frame):
         plt.gcf().autofmt_xdate()
         print(3)
         ymax = max(y)
+        self.set_current_max(ymax)
+        
         tmax = t[y.index(ymax)]
         ax.annotate('MAX: {}'.format(ymax),
                    xy=(tmax, ymax), xytext=(tmax, ymax+5),

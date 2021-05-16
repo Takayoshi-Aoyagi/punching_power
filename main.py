@@ -1,5 +1,6 @@
 import os
 import sys
+import traceback
 
 from application import Application
 
@@ -13,6 +14,7 @@ if __name__ == '__main__':
         app = Application(bd_addr)
     except Exception as e:
         print(e)
+        traceback.print_stack()
         exit_code = 1
     finally:
         if app:
