@@ -18,18 +18,6 @@ from motiontracker import MotionTracker
 HISTORY_SIZE = 5
 
 
-class TitleFrame(Frame):
-
-    def __init__(self, master=None):
-        super().__init__(master)
-
-        def exit_btn_clicked():
-            os._exit(0)
-
-        self.exit_btn = Button(text='x', command=exit_btn_clicked)
-        self.exit_btn.pack(side='right')
-
-
 class ValueFrame(Frame):
 
     def __init__(self, master=None):
@@ -118,8 +106,6 @@ class ApplicationFrame(Frame):
         self.destroy()
 
     def create_widgets(self):
-        TitleFrame(master=self._master).pack()
-
         self.value_frame = ValueFrame(master=self._master)
         self.value_frame.pack()
         self.value_frame.set_status('Initializing...', color='red')
@@ -173,12 +159,17 @@ class Application:
 
     def __init__(self, bd_addr=None):
         root = Tk()
+        self.root = root
         root.title('Punching power')
-        #root.attributes('-fullscreen', True)
         root.geometry('800x600')
+        root.attributes('-fullscreen', True)
+        root.bind("<F11>", self.quit_full_screen)
         frame = ApplicationFrame(master=root, bd_addr=bd_addr)
         frame.mainloop()
         self.frame = frame
+
+    def quit_full_screen(self, event):
+        self.root.attributes('-fullscreen', False)
 
     def destroy(self):
         try:
